@@ -15,7 +15,7 @@ On multi-monitor setups (3+ screens), moving the cursor between displays means d
 
 ## Install
 
-1. Download `MCscrolls.exe` from [Releases](https://github.com/sidserd/MCscrolls/releases).
+1. Download `MCscrolls.exe` from [Releases]([https://github.com/sidserd/MCscrolls/releases]).
 2. Run it. That's it.
 
 No installer. No dependencies. Runs in your system tray.
@@ -31,7 +31,7 @@ No installer. No dependencies. Runs in your system tray.
 Requires .NET 8 SDK.
 
 ```
-git clone https://github.com/sidserd/MCscrolls.git
+git clone https://github.com/seredac/MCscrolls.git
 cd MCscrolls
 dotnet publish src/MCscrolls.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
