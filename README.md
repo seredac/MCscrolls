@@ -13,6 +13,11 @@ On multi-monitor setups (3+ screens), moving the cursor between displays means d
 - **Alt + Scroll Down** — jump to the previous monitor
 - Your cursor lands exactly where you left it on each screen
 
+## Demo
+
+[![MCscrolls Demo](https://img.youtube.com/vi/NwFuzn8ljaE/0.jpg)](https://youtu.be/NwFuzn8ljaE)
+
+
 ## Install
 
 1. Download `MCscrolls.exe` from [Releases]([https://github.com/sidserd/MCscrolls/releases]).
