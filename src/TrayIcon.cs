@@ -10,9 +10,17 @@ internal sealed class TrayIcon : IDisposable
     private readonly ToolStripMenuItem _startupItem;
     private readonly ToolStripMenuItem _ghostCursorsItem;
     private readonly ToolStripMenuItem _monitorOrderItem;
+    private readonly MonitorManager _monitors;
+    private readonly Settings _settings;
+    private MonitorPanel? _settingsPanel;
+
+    public event Action? SettingsApplied;
 
     public TrayIcon(CursorSwitcher switcher, MonitorManager monitors, Settings settings, GhostCursorManager ghostManager)
     {
+        _monitors = monitors;
+        _settings = settings;
+
         _enabledItem = new ToolStripMenuItem("Enabled")
         {
             CheckOnClick = true,
@@ -53,6 +61,9 @@ internal sealed class TrayIcon : IDisposable
         };
         UpdateMonitorOrder(monitors);
 
+        var settingsItem = new ToolStripMenuItem("Settings...");
+        settingsItem.Click += (_, _) => OpenSettingsPanel();
+
         var aboutItem = new ToolStripMenuItem("About");
         aboutItem.Click += (_, _) =>
         {
@@ -75,6 +86,7 @@ internal sealed class TrayIcon : IDisposable
         contextMenu.Items.Add(_enabledItem);
         contextMenu.Items.Add(_startupItem);
         contextMenu.Items.Add(_ghostCursorsItem);
+        contextMenu.Items.Add(settingsItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(_monitorOrderItem);
         contextMenu.Items.Add(new ToolStripSeparator());
@@ -152,8 +164,128 @@ internal sealed class TrayIcon : IDisposable
         return Icon.FromHandle(bmp.GetHicon());
     }
 
+    private void OpenSettingsPanel()
+    {
+        if (_settingsPanel != null && !_settingsPanel.IsDisposed)
+        {
+            _settingsPanel.BringToFront();
+            _settingsPanel.Activate();
+            return;
+        }
+
+        // Build panel config from current settings
+        var monitorInfos = new List<PanelMonitorInfo>();
+        var screenLookup = new Dictionary<string, Rectangle>();
+        foreach (var screen in Screen.AllScreens)
+            screenLookup[screen.DeviceName] = screen.Bounds;
+
+        if (_settings.Sets.Count > 0)
+        {
+            foreach (var setConfig in _settings.Sets)
+            {
+                foreach (var entry in setConfig.Monitors)
+                {
+                    if (screenLookup.TryGetValue(entry.DeviceName, out var bounds))
+                    {
+                        monitorInfos.Add(new PanelMonitorInfo
+                        {
+                            DeviceName = entry.DeviceName,
+                            Bounds = bounds,
+                            SetName = setConfig.Name,
+                            OrderInSet = entry.Order,
+                            IsBoxedOut = entry.BoxedOut
+                        });
+                    }
+                }
+            }
+
+            // Add any new monitors not yet in settings
+            foreach (var screen in Screen.AllScreens)
+            {
+                if (!monitorInfos.Any(m => m.DeviceName == screen.DeviceName))
+                {
+                    monitorInfos.Add(new PanelMonitorInfo
+                    {
+                        DeviceName = screen.DeviceName,
+                        Bounds = screen.Bounds,
+                        SetName = "All",
+                        OrderInSet = monitorInfos.Count,
+                        IsBoxedOut = false
+                    });
+                }
+            }
+        }
+        else
+        {
+            foreach (var screen in Screen.AllScreens)
+            {
+                monitorInfos.Add(new PanelMonitorInfo
+                {
+                    DeviceName = screen.DeviceName,
+                    Bounds = screen.Bounds
+                });
+            }
+        }
+
+        _settingsPanel = new MonitorPanel(
+            monitorInfos,
+            _settings.CooldownMs,
+            _settings.BetweenSetCooldownMs,
+            _settings.Hotkeys.WithinSetModifier,
+            _settings.Hotkeys.BetweenSetModifier,
+            _settings.GhostStyle.Opacity,
+            _settings.GhostStyle.Size,
+            _settings.GhostStyle.Color);
+
+        _settingsPanel.FormClosed += (_, _) =>
+        {
+            if (_settingsPanel.Applied)
+            {
+                // Save cooldowns
+                _settings.CooldownMs = _settingsPanel.WithinSetCooldownMs;
+                _settings.BetweenSetCooldownMs = _settingsPanel.BetweenSetCooldownMs;
+
+                // Save monitor sets
+                _settings.Sets.Clear();
+                var setGroups = _settingsPanel.ResultMonitors
+                    .GroupBy(m => m.SetName);
+                foreach (var group in setGroups)
+                {
+                    var setConfig = new MonitorSetConfig { Name = group.Key };
+                    foreach (var m in group.OrderBy(m => m.OrderInSet))
+                    {
+                        setConfig.Monitors.Add(new MonitorEntry
+                        {
+                            DeviceName = m.DeviceName,
+                            Order = m.OrderInSet,
+                            BoxedOut = m.IsBoxedOut
+                        });
+                    }
+                    _settings.Sets.Add(setConfig);
+                }
+
+                // Save hotkeys
+                _settings.Hotkeys.WithinSetModifier = HotkeyConfig.ToStringArray(_settingsPanel.WithinSetModifiers);
+                _settings.Hotkeys.BetweenSetModifier = HotkeyConfig.ToStringArray(_settingsPanel.BetweenSetModifiers);
+
+                // Save ghost cursor styling
+                _settings.GhostStyle.Opacity = _settingsPanel.GhostOpacity;
+                _settings.GhostStyle.Size = _settingsPanel.GhostSize;
+                _settings.GhostStyle.Color = ColorTranslator.ToHtml(_settingsPanel.GhostColor);
+
+                _settings.Save();
+                SettingsApplied?.Invoke();
+            }
+            _settingsPanel = null;
+        };
+
+        _settingsPanel.Show();
+    }
+
     public void Dispose()
     {
+        _settingsPanel?.Close();
+        _settingsPanel?.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
     }

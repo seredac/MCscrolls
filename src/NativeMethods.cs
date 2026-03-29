@@ -12,6 +12,7 @@ internal static class NativeMethods
 
     // Delegates
     public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
+    public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     // Structs
     [StructLayout(LayoutKind.Sequential)]
@@ -57,6 +58,9 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);
 
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowsHookEx")]
+    public static extern IntPtr SetKeyboardHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
     [DllImport("user32.dll")]
     public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -95,6 +99,7 @@ internal static class NativeMethods
     public const int WS_EX_TRANSPARENT = 0x20;
     public const int WS_EX_LAYERED = 0x80000;
     public const int WS_EX_TOOLWINDOW = 0x80;
+    public const int LWA_COLORKEY = 0x1;
     public const int LWA_ALPHA = 0x2;
 
     [DllImport("user32.dll")]
@@ -110,4 +115,35 @@ internal static class NativeMethods
     // kernel32.dll
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
+
+    // Modifier keys
+    public const int VK_SHIFT = 0x10;
+    public const int VK_CONTROL = 0x11;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ClipCursor(ref RECT lpRect);
+
+    [DllImport("user32.dll", EntryPoint = "ClipCursor")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ClipCursorRelease(IntPtr lpRect); // pass IntPtr.Zero to release
+
+    // Global hotkey registration
+    public const int WM_HOTKEY = 0x0312;
+    public const int MOD_ALT = 0x0001;
+    public const int MOD_CONTROL = 0x0002;
+    public const int MOD_SHIFT = 0x0004;
+    public const int MOD_NOREPEAT = 0x4000;
+    public const int VK_RIGHT = 0x27;
+    public const int VK_LEFT = 0x25;
+    public const int VK_PRIOR = 0x21;  // Page Up
+    public const int VK_NEXT = 0x22;   // Page Down
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 }

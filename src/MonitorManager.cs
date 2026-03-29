@@ -162,6 +162,22 @@ internal sealed class MonitorManager
             return _monitors.Select(m => m.Handle).ToList();
     }
 
+    public MonitorInfo? GetMonitorInfo(IntPtr handle)
+    {
+        lock (_lock)
+        {
+            return _monitors.FirstOrDefault(m => m.Handle == handle);
+        }
+    }
+
+    public List<MonitorInfo> GetMonitors()
+    {
+        lock (_lock)
+        {
+            return new List<MonitorInfo>(_monitors);
+        }
+    }
+
     private static Point GetCenter(Rectangle bounds) =>
         new(bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2);
 }

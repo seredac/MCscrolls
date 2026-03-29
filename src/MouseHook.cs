@@ -37,15 +37,14 @@ internal sealed class MouseHook : IDisposable
     {
         if (nCode >= 0 && wParam == (IntPtr)NativeMethods.WM_MOUSEWHEEL)
         {
-            short altState = NativeMethods.GetAsyncKeyState(NativeMethods.VK_MENU);
-            bool altHeld = (altState & 0x8000) != 0;
+            bool altHeld = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_MENU) & 0x8000) != 0;
 
             if (altHeld)
             {
                 var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
                 int delta = (short)(hookStruct.mouseData >> 16);
                 ScrollWithAlt?.Invoke(delta);
-                return (IntPtr)1; // suppress the scroll event
+                return (IntPtr)1;
             }
         }
 

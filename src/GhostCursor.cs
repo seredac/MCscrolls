@@ -5,9 +5,11 @@ namespace MCscrolls;
 
 internal sealed class GhostCursorWindow : Form
 {
-    private const int GhostSize = 26;
+    private readonly int _size;
+    private readonly Color _fillColor;
+    private readonly byte _opacity;
 
-    // Arrow cursor polygon points (standard Windows arrow shape)
+    // Arrow cursor polygon points (standard Windows arrow shape, designed for 28px coordinate space)
     private static readonly PointF[] ArrowOutline = new PointF[]
     {
         new(0, 0),
@@ -20,13 +22,17 @@ internal sealed class GhostCursorWindow : Form
         new(0, 0)
     };
 
-    public GhostCursorWindow()
+    public GhostCursorWindow(int size = 26, Color? fillColor = null, byte opacity = 255)
     {
+        _size = size;
+        _fillColor = fillColor ?? Color.White;
+        _opacity = opacity;
+
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        ClientSize = new Size(GhostSize, GhostSize);
+        ClientSize = new Size(_size, _size);
         BackColor = Color.Magenta;
         TransparencyKey = Color.Magenta;
 
@@ -48,6 +54,21 @@ internal sealed class GhostCursorWindow : Form
         }
     }
 
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+
+        if (_opacity < 255)
+        {
+            NativeMethods.SetLayeredWindowAttributes(
+                this.Handle,
+                (uint)ColorTranslator.ToWin32(Color.Magenta),
+                _opacity,
+                (uint)(NativeMethods.LWA_COLORKEY | NativeMethods.LWA_ALPHA)
+            );
+        }
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
@@ -56,7 +77,7 @@ internal sealed class GhostCursorWindow : Form
         g.Clear(BackColor);
 
         // Scale the arrow to fit the window
-        float scale = GhostSize / 28f;
+        float scale = _size / 28f;
         var matrix = new Matrix();
         matrix.Scale(scale, scale);
         matrix.Translate(1, 1);
@@ -66,7 +87,7 @@ internal sealed class GhostCursorWindow : Form
         path.Transform(matrix);
 
         // Fully opaque colors to prevent magenta bleed-through
-        using var fillBrush = new SolidBrush(Color.White);
+        using var fillBrush = new SolidBrush(_fillColor);
         g.FillPath(fillBrush, path);
 
         using var outlinePen = new Pen(Color.Black, 1f);
@@ -79,12 +100,28 @@ internal sealed class GhostCursorWindow : Form
     }
 }
 
+internal struct GhostStyle
+{
+    public byte Opacity { get; set; }
+    public Color FillColor { get; set; }
+    public int Size { get; set; }
+
+    public static GhostStyle Default => new()
+    {
+        Opacity = 255,
+        FillColor = Color.White,
+        Size = 26
+    };
+}
+
 internal sealed class GhostCursorManager : IDisposable
 {
     private readonly MonitorManager _monitors;
     private readonly Dictionary<IntPtr, GhostCursorWindow> _ghosts = new();
+    private readonly Dictionary<string, Color> _setColors = new();
     private IntPtr _activeMonitor;
     private bool _enabled = true;
+    private GhostStyle _style = GhostStyle.Default;
 
     public bool Enabled
     {
@@ -98,6 +135,20 @@ internal sealed class GhostCursorManager : IDisposable
                 HideAllGhosts();
         }
     }
+
+    public GhostStyle Style
+    {
+        get => _style;
+        set
+        {
+            _style = value;
+            if (_ghosts.Count > 0)
+                RecreateGhosts();
+        }
+    }
+
+    public void SetSetColor(string setName, Color color) => _setColors[setName] = color;
+    public void ClearSetColors() => _setColors.Clear();
 
     public GhostCursorManager(MonitorManager monitors)
     {
@@ -160,7 +211,7 @@ internal sealed class GhostCursorManager : IDisposable
 
     private GhostCursorWindow CreateGhostWindow()
     {
-        return new GhostCursorWindow();
+        return new GhostCursorWindow(_style.Size, _style.FillColor, _style.Opacity);
     }
 
     private void ShowAllGhosts()

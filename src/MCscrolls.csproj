@@ -25,6 +25,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="MCscrolls.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="..\assets\icon.ico" Condition="Exists('..\assets\icon.ico')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
