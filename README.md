@@ -3,6 +3,10 @@
 
 Switch your cursor between monitors with Alt+Scroll. Each monitor remembers exactly where you left the cursor.
 
+## Demo
+
+[![MCscrolls Demo](https://img.youtube.com/vi/ScP3Xuh4Zk0/maxresdefault.jpg)](https://youtu.be/ScP3Xuh4Zk0)
+
 ## The Problem
 
 On multi-monitor setups (3+ screens), moving the cursor between displays means dragging across thousands of pixels. Existing tools jump to fixed positions. MCscrolls remembers where you were.
